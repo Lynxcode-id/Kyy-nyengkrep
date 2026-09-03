@@ -1,0 +1,55 @@
+const axios = require('axios');
+const readline = require('readline');
+
+async function omnifyAio(mediaUrl) {
+    try {
+        const res = await axios.post('https://api-aio.omnifylabs.sbs/api/v1/media/resolve', {
+            url: mediaUrl
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Origin': 'https://aio.omnifylabs.sbs',
+                'Referer': 'https://aio.omnifylabs.sbs/'
+            }
+        });
+
+        const rawData = res.data;
+        if (rawData?.status !== 'success' || !rawData?.data) {
+            throw new Error('Gagal mengambil data dari API.');
+        }
+
+        const data = rawData.data;
+        const formats = data.formats || [];
+        
+        const sdVideo = formats.find(f => f.id === 'sd');
+        const wmVideo = formats.find(f => f.id === 'watermark');
+        const audio = formats.find(f => f.id === 'audio');
+
+        return {
+            status: 'success',
+            platform: rawData.platform,
+            type: data.type,
+            title: data.description || 'Tidak ada judul',
+            author: data.author?.nickname || data.author?.uniqueId,
+            video_hd_no_wm: sdVideo ? sdVideo.url : data.videoUrl,
+            video_wm: wmVideo ? wmVideo.url : data.wmVideoUrl,
+            audio: audio ? audio.url : data.audioUrl
+        };
+
+    } catch (err) {
+        return { 
+            status: 'failed', 
+            error: err.response?.data?.message || err.message 
+        };
+    }
+}
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+rl.question('Masukkan link Media (TikTok/IG/dll): ', async (link) => {
+    const res = await omnifyAio(link);
+    console.log('\n======================================');
+    console.log(JSON.stringify(res, null, 2));
+    console.log('======================================\n');
+    rl.close();
+});
